@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Prisma, type PrismaClient } from "../src/index.js";
-import { createTestDatabase, type TestDatabase } from "./test-db.js";
+import { createTestDatabase, type TestDatabase } from "../src/testing/test-db.js";
 
 let db: TestDatabase;
 let prisma: PrismaClient;

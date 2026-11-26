@@ -1,5 +1,6 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import type { TestProject } from "vitest/node";
@@ -20,7 +21,7 @@ declare module "vitest" {
  * locally, a service container in CI).
  */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-  const rootEnv = fileURLToPath(new URL("../../../.env", import.meta.url));
+  const rootEnv = fileURLToPath(new URL("../../../../.env", import.meta.url));
   if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
   const adminUrl = process.env["DATABASE_URL"];
   if (!adminUrl) {
@@ -32,8 +33,11 @@ export default async function setup(project: TestProject): Promise<() => Promise
   await admin.connect();
   await admin.query(`CREATE DATABASE "${templateDb}"`);
 
-  execSync("prisma migrate deploy", {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
+  // Resolve the CLI from this package, so consumers (worker, api) don't need it on PATH.
+  const prismaCli = createRequire(import.meta.url).resolve("prisma/build/index.js");
+  execFileSync(process.execPath, [prismaCli, "migrate", "deploy"], {
+    // src/testing or dist/testing -> package root, where prisma.config.ts lives.
+    cwd: fileURLToPath(new URL("../..", import.meta.url)),
     env: { ...process.env, DATABASE_URL: withDatabase(adminUrl, templateDb) },
     stdio: "pipe",
   });

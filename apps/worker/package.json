@@ -7,11 +7,16 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.14.0",
+    "@lomi/db": "workspace:*",
+    "@lomi/extraction": "workspace:*",
+    "@lomi/jobs": "workspace:*",
     "@lomi/shared": "workspace:*",
+    "bullmq": "6.7.10",
     "ioredis": "6.1.0",
     "zod": "4.6.7"
   },

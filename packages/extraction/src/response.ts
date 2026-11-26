@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Shape of the extraction tool's input, as the model fills it in. Parsed
+ * Shape of the model's structured JSON output. Parsed
  * leniently per field (a missing field becomes a gap, an unknown one is
  * ignored) but strictly per entry: an entry with the wrong shape fails the
  * whole response, because the run can no longer be trusted.

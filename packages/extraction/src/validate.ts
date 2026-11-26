@@ -20,14 +20,14 @@ export interface ExtractedField {
 }
 
 /**
- * Turns the model's tool input into rows for `parsedText`. Throws
+ * Turns the model's JSON output into rows for `parsedText`. Throws
  * ExtractionResponseError when the response is unusable as a whole.
  */
-export function validateExtraction(type: DocumentType, parsedText: string, toolInput: unknown): ExtractedField[] {
+export function validateExtraction(type: DocumentType, parsedText: string, output: unknown): ExtractedField[] {
   const definitions = fieldsFor(type);
   const entries = parseExtractionResponse(
     definitions.map((d) => d.field),
-    toolInput,
+    output,
   );
 
   return definitions.map(({ field, type: fieldType }) => {

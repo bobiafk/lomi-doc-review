@@ -30,6 +30,8 @@ enum RunOutcome {
   superseded
   // Lease was lost to another attempt; the fenced commit refused this result.
   fenced_out
+  // The worker stopped (crash, kill, restart) before finishing; its lease expired.
+  abandoned
 }
 
 enum ReviewAction {
@@ -66,6 +68,11 @@ model DocumentVersion {
   status         VersionStatus @default(queued)
   // Incremented on every claim; used as the fencing token for the commit.
   attempt        Int           @default(0)
+  // Automatic claims left before the version is marked failed. A manual retry
+  // refills it; `attempt` itself only ever grows.
+  attemptsLeft   Int           @default(3) @map("attempts_left")
+  // Not claimable before this (backoff after a transient LLM error).
+  availableAt    DateTime      @default(now()) @map("available_at") @db.Timestamptz(3)
   leaseExpiresAt DateTime?     @map("lease_expires_at") @db.Timestamptz(3)
   lastError      String?       @map("last_error")
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -115,6 +122,8 @@ model ExtractedValue {
   evidenceStart   Int?     @map("evidence_start")
   evidenceEnd     Int?     @map("evidence_end")
   gapReason       String?  @map("gap_reason")
+  // Free-text detail for a gap, e.g. the model's reason a field is absent.
+  gapDetail       String?  @map("gap_detail")
   // Same field in the latest previously extracted version, when one exists.
   previousValueId String?  @map("previous_value_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)

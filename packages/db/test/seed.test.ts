@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "../src/index.js";
 import { seed } from "../src/seed.js";
-import { createTestDatabase, type TestDatabase } from "./test-db.js";
+import { createTestDatabase, type TestDatabase } from "../src/testing/test-db.js";
 
 const fixturesDir = fileURLToPath(new URL("../../../fixtures/", import.meta.url));
 const MANIFEST_IDS = ["doc-invoice-001", "doc-lease-001", "doc-report-001"];

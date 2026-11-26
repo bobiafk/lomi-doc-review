@@ -126,6 +126,8 @@ Validate every input with Zod from `packages/shared`. Return consistent error JS
   Changed values show previous value + previous review beside the new one. Failed docs show the error + retry.
 - Nice-to-have only if time allows: highlight the quote inside the version's text.
 - Goal: a reviewer knows what needs attention within five seconds.
+- Look and feel: like Notion. Calm, neutral, lots of whitespace, database-style rows, soft tag pills for status.
+  The look only: no Notion branding or assets.
 
 ## Docker
 
@@ -139,7 +141,7 @@ the reconciler extracts them. `ANTHROPIC_API_KEY` comes from `.env` (commit `.en
 - [x] 1. Scaffold: workspaces, turbo pipeline, packages, compose with postgres + redis, CI-able `pnpm turbo build test lint`
 - [x] 2. Prisma schema, migrations, seed from manifest
 - [x] 3. `packages/extraction` test-first: normalization, evidence validation, gap rules, carry-over diff (with real fixture text)
-- [ ] 4. Worker: claim/lease/heartbeat, LLM call, fenced commit, run logging, reconciler, failure + retry
+- [x] 4. Worker: claim/lease/heartbeat, LLM call, fenced commit, run logging, reconciler, failure + retry
 - [ ] 5. API endpoints + progress
 - [ ] 6. Web UI: list, detail, review actions, carry-over display
 - [ ] 7. Chaos pass: kill worker mid-extraction, `FLUSHALL` + restart, double upload, v2 during v1. Write results in `docs/chaos.md`

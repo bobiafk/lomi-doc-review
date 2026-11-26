@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { inject } from "vitest";
-import { createPrismaClient, type PrismaClient } from "../src/index.js";
+import { createPrismaClient, type PrismaClient } from "../index.js";
 import { withDatabase } from "./global-setup.js";
 
 export interface TestDatabase {

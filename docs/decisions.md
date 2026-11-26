@@ -121,3 +121,51 @@ Design choices not already fixed in `CLAUDE.md`. One entry each: decision, alter
 - **Decision:** an entry with the wrong shape throws `ExtractionResponseError` (the version goes to `failed`, retryable). A field the model omitted becomes a `not_returned` gap; unknown fields are ignored.
 - **Alternatives:** fail on any deviation, or salvage everything.
 - **Why:** a broken entry means the response can't be trusted; an omission is a normal, reviewable outcome.
+
+## Structured JSON output instead of a forced tool call
+
+- **Decision:** the extraction request uses `output_config.format` (JSON schema built per document type) and parses the text block. `@lomi/extraction` builds the schema; the worker owns the SDK call.
+- **Alternatives:** a tool with forced `tool_choice` (the original plan).
+- **Why:** Claude Sonnet 5.5 returns 400 on forced `tool_choice`, and a tool call only existed to get JSON back. Our own validation still runs after the schema-constrained output, because schema-valid is not the same as true.
+
+## Refusal fallback on, effort medium
+
+- **Decision:** `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`) and `effort: "medium"`. The run stores the model that actually answered.
+- **Alternatives:** no fallback (a refusal fails the version); default effort (`high` on Sonnet 5.5).
+- **Why:** a false-positive safety decline on an invoice would otherwise need a human retry; one-page documents with a fixed schema don't need `high`.
+
+## Automatic retries live in Postgres, not BullMQ
+
+- **Decision:** `attempts_left` (3, refilled by a manual retry) and `available_at` (backoff) on the version. Transient LLM errors (429, 5xx, network) re-queue with exponential backoff until attempts run out; everything else fails at once. BullMQ jobs use `attempts: 1` and are removed when done.
+- **Alternatives:** BullMQ's built-in `attempts`/`backoff`.
+- **Why:** retry state in Redis disappears on `FLUSHALL`; in Postgres the reconciler can always see and resume it, and a user can see "attempt 2 of 3".
+
+## Lease heartbeat aborts the LLM call when the lease is lost
+
+- **Decision:** while an attempt runs, the worker extends its lease every `HEARTBEAT_MS` with a fenced UPDATE; if that is refused (superseded, or re-claimed after a stall) it aborts the in-flight LLM request.
+- **Alternatives:** only rely on the fenced commit.
+- **Why:** the fenced commit already guarantees correctness; the abort saves tokens and frees the worker early when a new version arrives.
+
+## One run row per claim; the reconciler marks dead runs `abandoned`
+
+- **Decision:** a run row is written right after the claim and finished with an outcome. A run whose worker died (lease expired or a later attempt exists) is marked `abandoned` by the reconciler.
+- **Alternatives:** write the run only at the end.
+- **Why:** "every run is logged", including the ones that never finished; a crash shows up in the run history instead of as a silent gap.
+
+## `@lomi/jobs` holds the queue contract
+
+- **Decision:** queue name, job payload schema and `enqueueExtraction` (jobId = versionId, removed on completion) live in a small package used by both API and worker.
+- **Alternatives:** duplicate the constants, or put them in `@lomi/shared` (which the web app also imports).
+- **Why:** the API must enqueue without depending on the worker or the LLM SDK, and the web bundle should never pull in BullMQ.
+
+## Test database helpers are exported as `@lomi/db/testing`
+
+- **Decision:** the template-database global setup and `createTestDatabase()` ship from the db package; the worker (and API) reuse them. The Prisma CLI is resolved from the db package, not `PATH`.
+- **Alternatives:** copy the helpers into each app.
+- **Why:** one place that knows how to stand up a migrated database.
+
+## Carry-over is planned from the previous version as it was at extraction time
+
+- **Decision:** the worker loads the previous version's values and latest reviews just before the commit.
+- **Alternatives:** lock the previous version's reviews during extraction.
+- **Why:** the window is a few seconds. A review made on the old version in that window stays on the old version (visible in history) and is not copied forward; recorded as a known edge case.

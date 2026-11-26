@@ -25,3 +25,9 @@ WORKDIR /repo/packages/db
 ENV FIXTURES_DIR=/repo/fixtures \
     PRISMA_HIDE_UPDATE_MESSAGE=1
 CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/bin/seed.js"]
+
+# BullMQ consumer + reconciler. The only service that talks to the LLM.
+FROM source AS worker
+RUN pnpm turbo run build --filter=@lomi/worker...
+ENV NODE_ENV=production
+CMD ["node", "apps/worker/dist/main.js"]

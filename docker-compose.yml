@@ -1,6 +1,6 @@
 # Host ports default to 25432/26379 (override via POSTGRES_HOST_PORT /
 # REDIS_HOST_PORT) so they do not collide with a locally installed
-# Postgres/Redis. api, worker and web are added in the phases that introduce them.
+# Postgres/Redis. api and web are added in the phases that introduce them.
 services:
   postgres:
     image: postgres:17-alpine
@@ -40,6 +40,23 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      DATABASE_URL: postgresql://lomi:lomi@postgres:5432/lomi
+      REDIS_URL: redis://redis:6379
+      # Read from the repo-root .env (never committed).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in .env}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

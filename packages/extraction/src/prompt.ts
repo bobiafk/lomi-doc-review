@@ -2,11 +2,10 @@ import { fieldsFor, type DocumentType, type FieldType } from "@lomi/shared";
 
 /**
  * Builds the extraction request as plain data (no SDK types), so the worker
- * owns the LLM client and this package stays pure. The output is
- * deterministic: the stored prompt reproduces the call exactly.
+ * owns the LLM client and this package stays pure. The model answers with JSON
+ * constrained by `schema` (structured outputs). The output is deterministic:
+ * the stored prompt reproduces the call exactly.
  */
-
-export const EXTRACTION_TOOL_NAME = "record_extracted_fields";
 
 const VALUE_FORMAT: Record<FieldType, string> = {
   string: "the value as written in the document",
@@ -16,12 +15,13 @@ const VALUE_FORMAT: Record<FieldType, string> = {
   percent: 'percentage points as a plain number without the % sign, e.g. "4.2" for 4.2%',
 };
 
-interface JsonSchema {
-  type: string | string[];
+export interface JsonSchema {
+  type?: string;
+  anyOf?: JsonSchema[];
   description?: string;
   properties?: Record<string, JsonSchema>;
   required?: string[];
-  additionalProperties?: boolean;
+  additionalProperties?: false;
 }
 
 export interface FieldEntrySchema extends JsonSchema {
@@ -29,28 +29,24 @@ export interface FieldEntrySchema extends JsonSchema {
   required: string[];
 }
 
-export interface ExtractionTool {
-  name: string;
-  description: string;
-  input_schema: {
-    type: "object";
-    properties: {
-      fields: {
-        type: "object";
-        properties: Record<string, FieldEntrySchema>;
-        required: string[];
-        additionalProperties: false;
-      };
+export interface ExtractionOutputSchema extends JsonSchema {
+  type: "object";
+  properties: {
+    fields: {
+      type: "object";
+      properties: Record<string, FieldEntrySchema>;
+      required: string[];
+      additionalProperties: false;
     };
-    required: ["fields"];
-    additionalProperties: false;
   };
+  required: ["fields"];
+  additionalProperties: false;
 }
 
 export interface ExtractionPrompt {
   system: string;
   user: string;
-  tool: ExtractionTool;
+  schema: ExtractionOutputSchema;
 }
 
 const SYSTEM = `You extract structured fields from business documents for a human reviewer.
@@ -60,25 +56,23 @@ Rules:
 - For every field, "evidence" must be copied VERBATIM from the document text: an exact, contiguous passage (usually the line or clause that states the value). Do not paraphrase, reorder, fix typos or change capitalization. Keep it short, but long enough to contain the value.
 - The evidence must contain the value as the document writes it.
 - If the document does not state a field, set "found" to false, "value", "evidence" and "currency" to null, and explain briefly in "reason".
-- Format values exactly as each field's description asks.
-- Call the ${EXTRACTION_TOOL_NAME} tool exactly once.`;
+- Format values exactly as each field's description asks.`;
+
+const nullable = (type: string, description: string): JsonSchema => ({
+  anyOf: [{ type }, { type: "null" }],
+  description,
+});
 
 function fieldEntrySchema(type: FieldType): FieldEntrySchema {
   const properties: Record<string, JsonSchema> = {
     found: { type: "boolean", description: "true if the document states this field" },
-    value: { type: ["string", "null"], description: `${VALUE_FORMAT[type]}; null when not found` },
-    evidence: {
-      type: ["string", "null"],
-      description: "verbatim passage from the document that states the value; null when not found",
-    },
-    reason: { type: ["string", "null"], description: "why the field was not found; null when found" },
+    value: nullable("string", `${VALUE_FORMAT[type]}; null when not found`),
+    evidence: nullable("string", "verbatim passage from the document that states the value; null when not found"),
+    reason: nullable("string", "why the field was not found; null when found"),
   };
   const required = ["found", "value", "evidence", "reason"];
   if (type === "money") {
-    properties["currency"] = {
-      type: ["string", "null"],
-      description: "ISO 4217 code (e.g. USD) if the document indicates it; otherwise null",
-    };
+    properties["currency"] = nullable("string", "ISO 4217 code (e.g. USD) if the document indicates it; otherwise null");
     required.push("currency");
   }
   return { type: "object", properties, required, additionalProperties: false };
@@ -86,8 +80,6 @@ function fieldEntrySchema(type: FieldType): FieldEntrySchema {
 
 export function buildExtractionPrompt(type: DocumentType, parsedText: string): ExtractionPrompt {
   const fields = fieldsFor(type);
-  const properties = Object.fromEntries(fields.map((f) => [f.field, fieldEntrySchema(f.type)]));
-
   return {
     system: SYSTEM,
     user: [
@@ -98,22 +90,18 @@ export function buildExtractionPrompt(type: DocumentType, parsedText: string): E
       parsedText,
       "</document>",
     ].join("\n"),
-    tool: {
-      name: EXTRACTION_TOOL_NAME,
-      description: `Record every ${type} field with its verbatim evidence, or why it is absent.`,
-      input_schema: {
-        type: "object",
-        properties: {
-          fields: {
-            type: "object",
-            properties,
-            required: fields.map((f) => f.field),
-            additionalProperties: false,
-          },
+    schema: {
+      type: "object",
+      properties: {
+        fields: {
+          type: "object",
+          properties: Object.fromEntries(fields.map((f) => [f.field, fieldEntrySchema(f.type)])),
+          required: fields.map((f) => f.field),
+          additionalProperties: false,
         },
-        required: ["fields"],
-        additionalProperties: false,
       },
+      required: ["fields"],
+      additionalProperties: false,
     },
   };
 }
