@@ -8,6 +8,22 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: lomi
+          POSTGRES_PASSWORD: lomi
+          POSTGRES_DB: lomi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lomi -d lomi"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql://lomi:lomi@localhost:5432/lomi
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

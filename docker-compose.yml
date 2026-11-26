@@ -1,5 +1,6 @@
-# Infrastructure only for now. api, worker, web and the one-shot migrate
-# service are added in the phases that introduce them.
+# Host ports default to 25432/26379 (override via POSTGRES_HOST_PORT /
+# REDIS_HOST_PORT) so they do not collide with a locally installed
+# Postgres/Redis. api, worker and web are added in the phases that introduce them.
 services:
   postgres:
     image: postgres:17-alpine
@@ -8,7 +9,7 @@ services:
       POSTGRES_PASSWORD: lomi
       POSTGRES_DB: lomi
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-25432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -20,12 +21,25 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-26379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
       timeout: 3s
       retries: 30
+
+  # One-shot: prisma migrate deploy, then the idempotent seed. App services
+  # depend on it with condition: service_completed_successfully.
+  migrate:
+    build:
+      context: .
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://lomi:lomi@postgres:5432/lomi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   pgdata:

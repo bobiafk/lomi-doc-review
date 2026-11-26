@@ -1,0 +1,152 @@
+// Postgres is the system of record. Redis only rings the doorbell; every state a
+// user can see (status, attempts, errors, values, reviews, run logs) lives here.
+// Nothing is ever deleted: relations use onDelete: Restrict.
+// Extra CHECK constraints that Prisma cannot express live in the init migration.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum VersionStatus {
+  queued
+  extracting
+  extracted
+  failed
+  superseded
+}
+
+enum RunOutcome {
+  running
+  succeeded
+  failed
+  // A newer version arrived; the result was discarded.
+  superseded
+  // Lease was lost to another attempt; the fenced commit refused this result.
+  fenced_out
+}
+
+enum ReviewAction {
+  approve
+  correct
+}
+
+model Document {
+  // Manifest id for seeded documents (e.g. "doc-invoice-001"); generated for uploads.
+  id               String   @id
+  // Validated against packages/shared DocumentType at the edge. Kept as text so a
+  // new document type is a code change, not a migration.
+  type             String
+  title            String
+  currentVersionId String?  @unique @map("current_version_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  currentVersion DocumentVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: Restrict)
+  versions       DocumentVersion[] @relation("DocumentVersions")
+
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  documentId     String        @map("document_id")
+  versionNo      Int           @map("version_no")
+  fileName       String        @map("file_name")
+  fileBytes      Bytes         @map("file_bytes")
+  sha256         String        @db.Char(64)
+  // Filled by the worker when it parses the PDF. Evidence for this version is
+  // always validated against this text, never against another version's.
+  parsedText     String?       @map("parsed_text")
+  status         VersionStatus @default(queued)
+  // Incremented on every claim; used as the fencing token for the commit.
+  attempt        Int           @default(0)
+  leaseExpiresAt DateTime?     @map("lease_expires_at") @db.Timestamptz(3)
+  lastError      String?       @map("last_error")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  document      Document         @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Restrict)
+  currentOf     Document?        @relation("CurrentVersion")
+  runs          ExtractionRun[]
+  values        ExtractedValue[]
+
+  @@unique([documentId, versionNo])
+  // Reconciler scan: queued, or extracting with an expired lease.
+  @@index([status, leaseExpiresAt])
+  @@map("document_versions")
+}
+
+model ExtractionRun {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  versionId    String     @map("version_id") @db.Uuid
+  attempt      Int
+  model        String
+  prompt       String?
+  rawResponse  Json?      @map("raw_response")
+  outcome      RunOutcome @default(running)
+  error        String?
+  inputTokens  Int?       @map("input_tokens")
+  outputTokens Int?       @map("output_tokens")
+  startedAt    DateTime   @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt   DateTime?  @map("finished_at") @db.Timestamptz(3)
+
+  version DocumentVersion  @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  values  ExtractedValue[]
+
+  @@unique([versionId, attempt])
+  @@map("extraction_runs")
+}
+
+model ExtractedValue {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  versionId       String   @map("version_id") @db.Uuid
+  runId           String   @map("run_id") @db.Uuid
+  field           String
+  // Normalized value (ISO date, money in cents, percent as number). SQL NULL = gap.
+  value           Json?
+  evidenceText    String?  @map("evidence_text")
+  // Offsets into this version's parsed_text, for highlighting.
+  evidenceStart   Int?     @map("evidence_start")
+  evidenceEnd     Int?     @map("evidence_end")
+  gapReason       String?  @map("gap_reason")
+  // Same field in the latest previously extracted version, when one exists.
+  previousValueId String?  @map("previous_value_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  version       DocumentVersion  @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  run           ExtractionRun    @relation(fields: [runId], references: [id], onDelete: Restrict)
+  previousValue ExtractedValue?  @relation("ValueHistory", fields: [previousValueId], references: [id], onDelete: Restrict)
+  nextValues    ExtractedValue[] @relation("ValueHistory")
+  reviews       Review[]
+
+  // A second run of the same version can never duplicate values.
+  @@unique([versionId, field])
+  @@index([previousValueId])
+  @@map("extracted_values")
+}
+
+// Append-only. The latest row per value is its current review state.
+model Review {
+  id                  String       @id @default(uuid(7)) @db.Uuid
+  valueId             String       @map("value_id") @db.Uuid
+  action              ReviewAction
+  // Set iff action = correct. Annotation beside the value; the extracted value never changes.
+  correctedValue      Json?        @map("corrected_value")
+  note                String?
+  // Set when this row was copied forward from an earlier version's review.
+  carriedFromReviewId String?      @map("carried_from_review_id") @db.Uuid
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  value          ExtractedValue @relation(fields: [valueId], references: [id], onDelete: Restrict)
+  carriedFrom    Review?        @relation("ReviewCarryOver", fields: [carriedFromReviewId], references: [id], onDelete: Restrict)
+  carriedInto    Review[]       @relation("ReviewCarryOver")
+
+  @@index([valueId, createdAt])
+  @@map("reviews")
+}

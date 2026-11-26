@@ -137,7 +137,7 @@ the reconciler extracts them. `ANTHROPIC_API_KEY` comes from `.env` (commit `.en
 ## Phases (do one at a time; tick off here when done)
 
 - [x] 1. Scaffold: workspaces, turbo pipeline, packages, compose with postgres + redis, CI-able `pnpm turbo build test lint`
-- [ ] 2. Prisma schema, migrations, seed from manifest
+- [x] 2. Prisma schema, migrations, seed from manifest
 - [ ] 3. `packages/extraction` test-first: normalization, evidence validation, gap rules, carry-over diff (with real fixture text)
 - [ ] 4. Worker: claim/lease/heartbeat, LLM call, fenced commit, run logging, reconciler, failure + retry
 - [ ] 5. API endpoints + progress
