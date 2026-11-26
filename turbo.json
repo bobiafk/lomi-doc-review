@@ -1,25 +1,54 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalPassThroughEnv": ["DATABASE_URL", "REDIS_URL"],
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "REDIS_URL"
+  ],
   "tasks": {
     "generate": {
-      "inputs": ["prisma/schema.prisma"],
-      "outputs": ["src/generated/**"]
+      "inputs": [
+        "prisma/schema.prisma"
+      ],
+      "outputs": [
+        "src/generated/**"
+      ]
     },
     "build": {
-      "dependsOn": ["^build", "generate"],
-      "inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!test/**"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "dependsOn": [
+        "^build",
+        "generate"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.test.ts",
+        "!test/**"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**"
+      ],
+      "env": [
+        "API_URL"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^build", "generate"]
+      "dependsOn": [
+        "^build",
+        "generate"
+      ]
     },
     "test": {
-      "dependsOn": ["^build", "generate"],
+      "dependsOn": [
+        "^build",
+        "generate"
+      ],
       "outputs": []
     },
     "lint": {
-      "dependsOn": ["generate"]
+      "dependsOn": [
+        "generate"
+      ]
     }
   }
 }

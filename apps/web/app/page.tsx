@@ -1,10 +1,5 @@
-import { DOCUMENT_TYPES } from "@lomi/shared";
+import { DocumentList } from "../components/document-list";
 
 export default function HomePage() {
-  return (
-    <main>
-      <h1>Lomi document review</h1>
-      <p>Supported document types: {DOCUMENT_TYPES.join(", ")}</p>
-    </main>
-  );
+  return <DocumentList />;
 }

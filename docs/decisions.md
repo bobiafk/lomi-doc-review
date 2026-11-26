@@ -204,3 +204,26 @@ Design choices not already fixed in `CLAUDE.md`. One entry each: decision, alter
 
 - **Decision:** one file, at most 10 MB, must start with `%PDF-` (`415 not_a_pdf` otherwise). Uploaded documents get ids `doc-<uuid>`; seeded ones keep their manifest ids.
 - **Why:** cheap checks at the edge; anything subtler (encrypted, scanned) is caught by the worker's parser and becomes a visible `failed`.
+
+## The UI polls, and only while something is in flight
+
+- **Decision:** TanStack Query `refetchInterval` of 2 s on the list while any document is `queued`/`extracting`, and on a document page while its version is; otherwise no polling at all. Mutations invalidate the affected queries.
+- **Alternatives:** SSE/WebSockets pushed from the worker; manual refresh.
+- **Why:** extraction takes seconds and changes one status field. Push would need a channel from the worker through the API to the browser for a handful of state changes; bounded polling is simpler and stops by itself.
+
+## The browser talks to one origin: Next rewrites `/api/*` to Fastify
+
+- **Decision:** `next.config` rewrites `/api/:path*` to `API_URL` (baked in at build time; `turbo.json` declares `API_URL` so it reaches `next build` and the cache key).
+- **Alternatives:** CORS on the API with a public API URL in the client bundle.
+- **Why:** no CORS configuration, no API URL in client code, and the API stays an internal service in Compose.
+
+## Review page layout: attention first, quote beside value, document text alongside
+
+- **Decision:** groups "Needs your review" (changed values first, then pending, then gaps), "Carried over", "Reviewed". Each row shows the effective value, the verified quote, and for changed values the v(N-1) value and review. A side panel shows the version's parsed text with the focused value's quote highlighted (from the stored offsets). Old versions open read-only with a banner.
+- **Why:** the five-second test: the top line and first group say what needs you; the quote and highlighted passage let a reviewer verify without opening the PDF.
+
+## Dev-only canned LLM (`EXTRACTION_LLM=canned`)
+
+- **Decision:** a stand-in `ExtractionLlm` that returns fixed answers for the four fixture PDFs (and `not_found` gaps for anything else). Runs record model `canned-dev`. The default remains the Anthropic client, and the worker refuses to start without a key unless canned is chosen explicitly.
+- **Alternatives:** writing values straight into the database for UI work.
+- **Why:** it exercises the real pipeline after the LLM call (evidence validation, carry-over, fenced commit), so UI work and demos use real data paths while the API account has no credit.

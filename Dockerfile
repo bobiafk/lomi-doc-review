@@ -38,3 +38,17 @@ RUN pnpm turbo run build --filter=@lomi/api...
 ENV NODE_ENV=production
 EXPOSE 3001
 CMD ["node", "apps/api/dist/server.js"]
+
+# Next.js review UI. API_URL is baked into the /api rewrite at build time.
+FROM source AS web-build
+ARG API_URL=http://api:3001
+ENV API_URL=$API_URL
+RUN pnpm turbo run build --filter=@lomi/web...
+
+FROM node:22.13.0-slim AS web
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+COPY --from=web-build /repo/apps/web/.next/standalone ./
+COPY --from=web-build /repo/apps/web/.next/static ./apps/web/.next/static
+EXPOSE 3000
+CMD ["node", "apps/web/server.js"]
