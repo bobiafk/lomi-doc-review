@@ -25,11 +25,19 @@ jobs:
     env:
       DATABASE_URL: postgresql://lomi:lomi@localhost:5432/lomi
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build test lint typecheck
+
+  # Every image `docker compose up` needs must build; a broken Dockerfile
+  # stage would otherwise only show up on someone's first run.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose build
