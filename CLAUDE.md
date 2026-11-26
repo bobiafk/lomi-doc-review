@@ -145,7 +145,7 @@ the reconciler extracts them. `ANTHROPIC_API_KEY` comes from `.env` (commit `.en
 - [x] 5. API endpoints + progress
 - [x] 6. Web UI: list, detail, review actions, carry-over display
 - [x] 7. Chaos pass: kill worker mid-extraction, `FLUSHALL` + restart, double upload, v2 during v1. Write results in `docs/chaos.md`
-- [ ] 8. README for a new engineer (see brief section 7) + final cleanup
+- [x] 8. README for a new engineer (see brief section 7) + final cleanup
 
 Cut order if short on time: quote highlighting → deployment → UI polish. Never cut phases 3, 4 or 7.
 
