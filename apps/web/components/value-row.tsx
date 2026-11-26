@@ -31,6 +31,8 @@ export function ValueRow({ value, documentId, editable, focused, onFocus }: Prop
     mutationFn: (body: ReviewRequest) => api.review(value.id, body),
     onSuccess: async () => {
       setEditing(false);
+      // Keep the panel on the value just reviewed, wherever it moves to.
+      onFocus();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["document", documentId] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.documents }),
@@ -59,7 +61,13 @@ export function ValueRow({ value, documentId, editable, focused, onFocus }: Prop
   const previousChanged = value.previous && value.reviewState === "pending";
 
   return (
-    <div className={`value-row ${focused ? "focused" : ""}`} onMouseEnter={onFocus} onClick={onFocus}>
+    // onMouseMove, not onMouseEnter: after a review the rows re-sort under a
+    // still cursor, and "enter" would silently move focus to another value.
+    <div
+      className={`value-row ${focused ? "focused" : ""}`}
+      onMouseMove={focused ? undefined : onFocus}
+      onClick={onFocus}
+    >
       <div className="value-field">{humanizeField(value.field)}</div>
 
       <div className="value-main">

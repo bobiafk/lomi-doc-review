@@ -117,7 +117,7 @@ function Loaded({ detail }: { detail: VersionDetail }) {
                 </Group>
               </div>
               {version.parsedText && (
-                <DocumentText text={version.parsedText} highlight={focused?.evidence ?? null} versionNo={version.versionNo} />
+                <DocumentText text={version.parsedText} value={focused} versionNo={version.versionNo} />
               )}
             </div>
           </>

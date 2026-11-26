@@ -212,6 +212,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--border); border-radius: 8px; background: var(--bg-sidebar);
 }
 .doc-text-header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-faint); display: flex; justify-content: space-between; }
+.doc-text-focus { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; background: var(--bg); }
 .doc-text pre { margin: 0; padding: 12px; white-space: pre-wrap; word-break: break-word; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.6; }
 .doc-text mark { background: var(--highlight); color: inherit; border-radius: 2px; box-shadow: 0 0 0 2px var(--highlight); }
 
