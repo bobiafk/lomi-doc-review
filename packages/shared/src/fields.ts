@@ -40,6 +40,22 @@ export const FIELD_DEFINITIONS = {
   ],
 } as const satisfies Record<string, readonly FieldDefinition[]>;
 
+/**
+ * Normalized value shapes, as stored in extracted_values.value and
+ * reviews.corrected_value:
+ * - string: whitespace-collapsed text
+ * - date: ISO "YYYY-MM-DD"
+ * - money: integer cents + ISO 4217 currency (null when the document doesn't say)
+ * - number / percent: a JS number (percent in percentage points: 4.2 means 4.2%)
+ */
+export const MoneyValueSchema = z.object({
+  cents: z.number().int(),
+  currency: z.string().regex(/^[A-Z]{3}$/).nullable(),
+});
+export type MoneyValue = z.infer<typeof MoneyValueSchema>;
+export const FieldValueSchema = z.union([z.string(), z.number(), MoneyValueSchema]);
+export type FieldValue = z.infer<typeof FieldValueSchema>;
+
 export type DocumentType = keyof typeof FIELD_DEFINITIONS;
 export const DOCUMENT_TYPES = Object.keys(FIELD_DEFINITIONS) as [DocumentType, ...DocumentType[]];
 export const DocumentTypeSchema = z.enum(DOCUMENT_TYPES);

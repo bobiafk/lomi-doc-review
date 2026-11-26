@@ -79,3 +79,45 @@ Design choices not already fixed in `CLAUDE.md`. One entry each: decision, alter
 - **Decision:** a root `Dockerfile` with a shared `deps`/`source` stage and one target per service (`migrate` now; api/worker/web later).
 - **Alternatives:** a Dockerfile per app with `turbo prune`.
 - **Why:** one lockfile fetch layer shared by every service, and one place to read. `turbo prune` is the next step if image size matters.
+
+## unpdf pinned to 1.9.1; runtime stays on Node 22
+
+- **Decision:** `unpdf@1.9.1`.
+- **Alternatives:** `unpdf@2.x` (requires Node >= 24; on Node 22 it hangs), or moving everything to Node 24.
+- **Why:** Node 22 is what the dev machine, CI and the Docker base image run today; 1.9.1 extracts the fixtures cleanly. Moving to Node 24 + unpdf 2 is a one-line change in each place later.
+
+## Evidence matching: NFKC + whitespace collapse, case-sensitive, offsets mapped back
+
+- **Decision:** both the quote and the document text are normalized per code point (NFKC) with whitespace runs collapsed; the quote must then be an exact, case-sensitive substring. A position map turns the match back into offsets in the original `parsed_text`, and the stored `evidence_text` is that exact original slice, not the model's quote.
+- **Alternatives:** raw substring (breaks on PDF line wraps), fuzzy matching (lets paraphrases through), case-insensitive matching.
+- **Why:** PDF extraction wraps lines and emits ligatures, models don't; everything else must stay verbatim or the hallucination defense is meaningless. Missing whitespace ("Net30" vs "Net 30") is not forgiven.
+
+## The quote must contain the value (`value_not_in_evidence`)
+
+- **Decision:** after the quote is found, the normalized value must appear in it (numbers/amounts by numeric match, dates by ISO or a common written form, strings case-insensitively). Otherwise the field is a gap with `value_not_in_evidence`.
+- **Alternatives:** only check that the quote exists, as the brief requires.
+- **Why:** a model can quote the right line and report the wrong number. This catches it for the cost of a few regexes.
+
+## The model returns canonical values; normalization rejects instead of guessing
+
+- **Decision:** the tool schema asks for ISO dates, plain decimals and an ISO currency code. Normalization is strict: anything else is an `invalid_value` gap. Money is `{ cents, currency }`, percent is percentage points.
+- **Alternatives:** parse whatever format the model returns (date libraries, number words).
+- **Why:** the model is good at reformatting; our code is good at checking. A strict, small normalizer is easy to trust and test, and carry-over compares these normalized values.
+
+## Gap reasons are a closed set
+
+- **Decision:** `not_found` (model's reason kept in `gapDetail`), `not_returned`, `invalid_value`, `evidence_not_found`, `value_not_in_evidence`, defined in `packages/shared`.
+- **Alternatives:** free-text reasons.
+- **Why:** the UI and progress counts can group and explain gaps; free text still lives in `gapDetail`. Needs a `gap_detail` column (added with the worker in phase 4).
+
+## Gaps never carry a review over
+
+- **Decision:** a review is carried only between two evidenced values. If either side is a gap, the new value is pending.
+- **Alternatives:** carry "confirmed absent" approvals between gaps.
+- **Why:** a gap has no evidence to compare, so "evidence unchanged" cannot be shown. Re-confirming an absence is cheap; silently carrying a stale correction onto a gap is not.
+
+## A malformed field entry fails the whole run; a missing field is a gap
+
+- **Decision:** an entry with the wrong shape throws `ExtractionResponseError` (the version goes to `failed`, retryable). A field the model omitted becomes a `not_returned` gap; unknown fields are ignored.
+- **Alternatives:** fail on any deviation, or salvage everything.
+- **Why:** a broken entry means the response can't be trusted; an omission is a normal, reviewable outcome.
