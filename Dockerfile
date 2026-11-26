@@ -22,5 +22,6 @@ RUN pnpm install --frozen-lockfile
 FROM source AS migrate
 RUN pnpm turbo run build --filter=@lomi/db
 WORKDIR /repo/packages/db
-ENV FIXTURES_DIR=/repo/fixtures \n    PRISMA_HIDE_UPDATE_MESSAGE=1
+ENV FIXTURES_DIR=/repo/fixtures \
+    PRISMA_HIDE_UPDATE_MESSAGE=1
 CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/bin/seed.js"]
