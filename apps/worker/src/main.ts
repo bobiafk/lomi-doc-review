@@ -3,6 +3,7 @@ import { createExtractionQueue, enqueueExtraction, EXTRACTION_QUEUE, ExtractionJ
 import { Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { AnthropicExtractionLlm } from "./anthropic-llm.js";
+import { CannedLlm } from "./canned-llm.js";
 import { loadEnv } from "./env.js";
 import { processVersion, type WorkerDeps } from "./process-version.js";
 import { reconcile } from "./reconciler.js";
@@ -17,7 +18,10 @@ const queue = createExtractionQueue(connection);
 
 const deps: WorkerDeps = {
   prisma,
-  llm: new AnthropicExtractionLlm(env.ANTHROPIC_MODEL, env.ANTHROPIC_API_KEY),
+  llm:
+    env.EXTRACTION_LLM === "canned"
+      ? new CannedLlm()
+      : new AnthropicExtractionLlm(env.ANTHROPIC_MODEL, env.ANTHROPIC_API_KEY),
   enqueue: (versionId, delayMs) => enqueueExtraction(queue, versionId, delayMs),
   leaseMs: env.LEASE_MS,
   heartbeatMs: env.HEARTBEAT_MS,
@@ -48,7 +52,7 @@ async function reconcileOnce(): Promise<void> {
 
 await reconcileOnce();
 const timer = setInterval(() => void reconcileOnce(), env.RECONCILE_MS);
-log("worker started", { model: env.ANTHROPIC_MODEL, concurrency: env.WORKER_CONCURRENCY });
+log("worker started", { model: deps.llm.model, concurrency: env.WORKER_CONCURRENCY });
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { seed, type PrismaClient } from "@lomi/db";
 import type { ExtractionPrompt } from "@lomi/extraction";
+import { cannedOutputs } from "../src/canned-llm.js";
 import type { ExtractionLlm, LlmResult } from "../src/llm.js";
 import type { WorkerDeps } from "../src/process-version.js";
 
@@ -96,33 +97,5 @@ export function deps(prisma: PrismaClient, llm: ExtractionLlm, overrides: Partia
   };
 }
 
-const found = (value: string, evidence: string, currency: string | null = null) => ({
-  found: true,
-  value,
-  currency,
-  evidence,
-  reason: null,
-});
-
-export function invoiceV1Output() {
-  return {
-    fields: {
-      invoice_number: found("INV-2025-0847", "Invoice Number: INV-2025-0847"),
-      issue_date: found("2025-09-14", "Issue Date: 2025-09-14"),
-      due_date: found("2025-10-14", "Due Date: 2025-10-14"),
-      vendor_name: found("Meridian Office Supplies LLC", "MERIDIAN OFFICE SUPPLIES LLC"),
-      total_amount: found("5230.29", "Total Due: $5,230.29", "USD"),
-    },
-  };
-}
-
-export function invoiceV2Output() {
-  const v1 = invoiceV1Output();
-  return {
-    fields: {
-      ...v1.fields,
-      due_date: found("2025-11-13", "Due Date: 2025-11-13"),
-      total_amount: found("6126.45", "Total Due: $6,126.45", "USD"),
-    },
-  };
-}
+export const invoiceV1Output = () => structuredClone(cannedOutputs.invoiceV1);
+export const invoiceV2Output = () => structuredClone(cannedOutputs.invoiceV2);
