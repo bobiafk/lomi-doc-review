@@ -31,3 +31,10 @@ FROM source AS worker
 RUN pnpm turbo run build --filter=@lomi/worker...
 ENV NODE_ENV=production
 CMD ["node", "apps/worker/dist/main.js"]
+
+# HTTP API. Never calls the LLM: uploads commit, ring the queue, return 202.
+FROM source AS api
+RUN pnpm turbo run build --filter=@lomi/api...
+ENV NODE_ENV=production
+EXPOSE 3001
+CMD ["node", "apps/api/dist/server.js"]

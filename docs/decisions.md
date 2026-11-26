@@ -169,3 +169,38 @@ Design choices not already fixed in `CLAUDE.md`. One entry each: decision, alter
 - **Decision:** the worker loads the previous version's values and latest reviews just before the commit.
 - **Alternatives:** lock the previous version's reviews during extraction.
 - **Why:** the window is a few seconds. A review made on the old version in that window stays on the old version (visible in history) and is not copied forward; recorded as a known edge case.
+
+## Re-uploading the current file is a no-op
+
+- **Decision:** `POST /documents/:id/versions` with a file whose sha256 equals the current version's returns `200 { duplicate: true }` and creates nothing. Concurrent uploads to one document are serialized with `SELECT … FOR UPDATE` on the document row.
+- **Alternatives:** always create a version; reject duplicates with 409.
+- **Why:** an impatient double-click or a client retry should not create a version, supersede in-flight work and spend another LLM call. Returning the existing version keeps the client simple.
+
+## Only the current version's values can be reviewed
+
+- **Decision:** reviewing a value of a non-current version returns `409 not_current_version`.
+- **Alternatives:** allow reviews on any version.
+- **Why:** a review on an old version would never be seen by the current one; carry-over flows forward only. Old versions stay readable through `GET /documents/:id/versions/:n`.
+
+## Corrections are normalized on the server, with the extraction rules
+
+- **Decision:** `{ action: "correct", value }` accepts what a reviewer types ("$6,126.45", "4.2%") and normalizes it with the same `normalizeValue` the worker uses; invalid input is `422 invalid_value`. The API imports `@lomi/extraction` for this (pure code: no LLM SDK; the client lives in the worker).
+- **Alternatives:** store the raw string; normalize in the browser.
+- **Why:** carry-over and the UI compare normalized values; a correction must have the same shape as an extracted value.
+
+## Progress buckets are disjoint; `gaps` means gaps awaiting review
+
+- **Decision:** `total = pending + gaps + approved + corrected + carriedOver`. A reviewed gap counts in its review bucket.
+- **Alternatives:** count gaps separately from review state (overlapping numbers).
+- **Why:** a progress bar needs parts that add up, and "gaps waiting for you" is what a reviewer acts on.
+
+## The API's Redis client fails fast
+
+- **Decision:** `enableOfflineQueue: false`, `maxRetriesPerRequest: 1`; an enqueue failure is logged and the upload still returns 202.
+- **Alternatives:** ioredis defaults (commands buffer until Redis is back).
+- **Why:** with defaults an upload hangs while Redis is down. The version is already committed, so the reconciler enqueues it within one interval. Verified: upload with Redis stopped returned 202 in 30 ms.
+
+## Upload limits
+
+- **Decision:** one file, at most 10 MB, must start with `%PDF-` (`415 not_a_pdf` otherwise). Uploaded documents get ids `doc-<uuid>`; seeded ones keep their manifest ids.
+- **Why:** cheap checks at the edge; anything subtler (encrypted, scanned) is caught by the worker's parser and becomes a visible `failed`.

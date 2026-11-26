@@ -2,7 +2,13 @@
   "extends": "@lomi/config/tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "test",
+    "vitest.config.ts"
+  ]
 }

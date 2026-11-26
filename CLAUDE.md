@@ -142,7 +142,7 @@ the reconciler extracts them. `ANTHROPIC_API_KEY` comes from `.env` (commit `.en
 - [x] 2. Prisma schema, migrations, seed from manifest
 - [x] 3. `packages/extraction` test-first: normalization, evidence validation, gap rules, carry-over diff (with real fixture text)
 - [x] 4. Worker: claim/lease/heartbeat, LLM call, fenced commit, run logging, reconciler, failure + retry
-- [ ] 5. API endpoints + progress
+- [x] 5. API endpoints + progress
 - [ ] 6. Web UI: list, detail, review actions, carry-over display
 - [ ] 7. Chaos pass: kill worker mid-extraction, `FLUSHALL` + restart, double upload, v2 during v1. Write results in `docs/chaos.md`
 - [ ] 8. README for a new engineer (see brief section 7) + final cleanup
