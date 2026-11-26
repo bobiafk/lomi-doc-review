@@ -5,6 +5,8 @@ const EnvSchema = z.object({
   REDIS_URL: z.string().min(1),
   /** `canned` is a dev-only stand-in that answers for the fixture documents (see canned-llm.ts). */
   EXTRACTION_LLM: z.enum(["anthropic", "canned"]).default("anthropic"),
+  /** Dev-only: makes the canned LLM slow, so chaos tests can act mid-extraction. */
+  CANNED_DELAY_MS: z.coerce.number().int().min(0).default(0),
   ANTHROPIC_API_KEY: z.string().default(""),
   ANTHROPIC_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(2),

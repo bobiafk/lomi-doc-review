@@ -20,7 +20,7 @@ const deps: WorkerDeps = {
   prisma,
   llm:
     env.EXTRACTION_LLM === "canned"
-      ? new CannedLlm()
+      ? new CannedLlm(env.CANNED_DELAY_MS)
       : new AnthropicExtractionLlm(env.ANTHROPIC_MODEL, env.ANTHROPIC_API_KEY),
   enqueue: (versionId, delayMs) => enqueueExtraction(queue, versionId, delayMs),
   leaseMs: env.LEASE_MS,

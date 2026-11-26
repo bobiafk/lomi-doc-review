@@ -12,10 +12,28 @@ import type { ExtractionLlm, LlmResult } from "./llm.js";
 export class CannedLlm implements ExtractionLlm {
   readonly model = "canned-dev";
 
-  async extract(prompt: ExtractionPrompt, _signal?: AbortSignal): Promise<LlmResult> {
+  /** `delayMs` simulates a slow model, so chaos tests can act mid-extraction. */
+  constructor(private readonly delayMs = 0) {}
+
+  async extract(prompt: ExtractionPrompt, signal?: AbortSignal): Promise<LlmResult> {
+    if (this.delayMs > 0) await sleep(this.delayMs, signal);
     const output = cannedOutputFor(prompt.user);
     return { model: this.model, output, raw: { canned: true, output }, inputTokens: null, outputTokens: null };
   }
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason);
+      },
+      { once: true },
+    );
+  });
 }
 
 const found = (value: string, evidence: string, currency: string | null = null) => ({

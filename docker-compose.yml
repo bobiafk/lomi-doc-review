@@ -76,6 +76,7 @@ services:
       # start without a key unless EXTRACTION_LLM=canned (dev-only stand-in).
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       EXTRACTION_LLM: ${EXTRACTION_LLM:-anthropic}
+      CANNED_DELAY_MS: ${CANNED_DELAY_MS:-0}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
     depends_on:
       migrate:

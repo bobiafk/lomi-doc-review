@@ -227,3 +227,4 @@ Design choices not already fixed in `CLAUDE.md`. One entry each: decision, alter
 - **Decision:** a stand-in `ExtractionLlm` that returns fixed answers for the four fixture PDFs (and `not_found` gaps for anything else). Runs record model `canned-dev`. The default remains the Anthropic client, and the worker refuses to start without a key unless canned is chosen explicitly.
 - **Alternatives:** writing values straight into the database for UI work.
 - **Why:** it exercises the real pipeline after the LLM call (evidence validation, carry-over, fenced commit), so UI work and demos use real data paths while the API account has no credit.
+- **Also:** `CANNED_DELAY_MS` makes it slow (abortable), so `scripts/chaos.sh` can kill, flush and supersede mid-extraction.

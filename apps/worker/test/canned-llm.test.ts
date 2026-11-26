@@ -29,3 +29,12 @@ describe("CannedLlm (dev-only stand-in)", () => {
     expect(fields.every((f) => f.gapReason === "not_found")).toBe(true);
   });
 });
+
+describe("CannedLlm delay", () => {
+  it("can be aborted mid-delay, like a real request", async () => {
+    const controller = new AbortController();
+    const pending = new CannedLlm(10_000).extract(buildExtractionPrompt("invoice", "x"), controller.signal);
+    controller.abort(new Error("lease lost"));
+    await expect(pending).rejects.toThrow("lease lost");
+  });
+});
