@@ -1,0 +1,19 @@
+{
+  "name": "lomi-doc-review",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.23.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "check": "turbo run build test lint typecheck"
+  },
+  "devDependencies": {
+    "turbo": "2.11.13"
+  }
+}
